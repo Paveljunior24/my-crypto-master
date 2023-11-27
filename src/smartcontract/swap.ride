@@ -1,0 +1,48 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let usdnId = base58'25FEqEjRkqK6yCkiT7Lz6SAYz7gUFCtxfCChnrVFD5AT'
+
+func getWavesCurrentPrice () = {
+    2000000 #=2USDN
+} 
+
+func getWavesNewPrice () = {
+    3000000 #=3USDN
+}
+
+@Callable(i)
+func swapToWaves(callerId:String,usdnAmount:Int) = {
+
+    let AmountIn = usdnAmount #USDN
+    let AmountOut = (AmountIn *100000000) / 2000000 #Waves
+    (
+        [
+            #ScriptTransfer(i.caller,AmountOut,unit),
+            IntegerEntry("AmountIn_USDN", AmountIn),
+            IntegerEntry("AmountOut_WAVES", AmountOut),
+            IntegerEntry((callerId+"_Last_AmountOut_Waves"),AmountOut)
+        ],
+        AmountOut
+    )
+    
+}
+
+@Callable(i)
+func swapToUSDN(wavesAmount:Int,userAddress:String) = {
+    let AmountOut = wavesAmount * getWavesNewPrice()
+    (
+        [
+            ScriptTransfer(addressFromStringValue(userAddress),AmountOut,usdnId),
+            IntegerEntry("AmountIn_Waves", wavesAmount),
+            IntegerEntry("AmountOut_USDN", AmountOut)
+        ],
+        AmountOut
+    )
+       
+}
+
+@Verifier(tx)
+func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+        

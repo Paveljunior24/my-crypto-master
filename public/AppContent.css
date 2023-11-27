@@ -1,0 +1,13 @@
+.site-layout-content {
+    background-color: #ffff;
+    border-radius: 5px;
+    padding: 20px;
+}
+
+.tokenTable {
+    background-color: #ffff;
+}
+
+.tokenTable th {
+    background-color: #ffff !important;
+}

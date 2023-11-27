@@ -1,0 +1,9 @@
+body {
+    margin: 0 !important;
+    height: 100vh;
+}
+
+main {
+    height: calc(100vh - 67px - 64px);
+    background-color: lightgrey;
+}

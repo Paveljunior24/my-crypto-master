@@ -1,0 +1,160 @@
+{-# STDLIB_VERSION 6 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE DAPP #-}
+
+
+#let smartcontractId = Address(base58'3N3DnVffnUyZtz2MRbk5U7giN112WempMNd')#Puzzle Lend Smart Contract
+#let tokenId = Address(base58'25FEqEjRkqK6yCkiT7Lz6SAYz7gUFCtxfCChnrVFD5AT') #Testnet XTN from Waves Exchange
+let usdnId = base58'25FEqEjRkqK6yCkiT7Lz6SAYz7gUFCtxfCChnrVFD5AT'
+let waves2LTokenId = base58'GQ9QNVLGfYSbNZ4dS8NRyvGGELZL4sWPKiVj88CV1rJL'
+
+let puzzleLendSC = "3N3DnVffnUyZtz2MRbk5U7giN112WempMNd"
+let fakePuzzleSwapSC = "3Ms8fqbXM4RhmM6CPTr44hUwHe2CCmVCfVA"
+
+let usdnAddressStr = "25FEqEjRkqK6yCkiT7Lz6SAYz7gUFCtxfCChnrVFD5AT"
+let waves2LTokenStr = "GQ9QNVLGfYSbNZ4dS8NRyvGGELZL4sWPKiVj88CV1rJL"
+
+func tryGetInteger (key:String) = match getInteger(this, key) {
+    case b: Int => 
+        b
+    case _ => 
+        0
+}
+
+@Callable(i)
+func mintLong2() = {
+    if (if ((size(i.payments) != 1))
+        then true
+    else (i.payments[0].amount == 0))
+        then throw("1 payment has to be attached mint")
+    else{
+        let firstAmountIn = i.payments[0].amount #USDN als Input
+        let callerId = toString(i.caller)
+
+        strict firstSwappedWavesAmount = invoke(addressFromStringValue(fakePuzzleSwapSC),"swapToWaves",[toString(i.caller),firstAmountIn],nil) #Waves
+       
+    	match firstSwappedWavesAmount {
+            case firstSwappedAmountValue: Int => (
+                strict firstDepositedWavesAmount = invoke(addressFromStringValue(puzzleLendSC),"supply",nil,[AttachedPayment(unit,firstSwappedAmountValue)]) #Waves
+
+                #| 0,7 | 0,49 | 0,343 | 0,2401 | 0,16807 
+                # /100000
+                let listPercentage = [70,49,34,24,17]
+
+                func repeatFunc (accum:Int, next:Int) = {
+                    #strict borrowedUsdn = invoke(addressFromStringValue(puzzleLendSC),"borrow",[usdnAddressStr,(firstAmountIn*accum)/100],nil) #USDN
+                    strict swappedAmount = invoke(addressFromStringValue(fakePuzzleSwapSC),"swapToWaves",[toString(i.caller),(firstSwappedAmountValue*accum)/100],nil)
+                    match swappedAmount {
+                        case swappedAmountValue: Int => (
+                            strict depositedWaves = invoke(addressFromStringValue(puzzleLendSC),"supply",nil,[AttachedPayment(unit,swappedAmountValue)]) #Waves
+                            (accum+next)            
+                        )
+                        case _ =>  throw("Incorrect invoke result") 
+                    }
+                    
+                }
+
+                let res = FOLD<5>(listPercentage, 0, repeatFunc);
+                [
+                    ScriptTransfer(i.caller,(firstSwappedAmountValue*res)/100,waves2LTokenId)  #Man bekommt die Summe von Waves Token (Waves2L) zurück
+                ]
+            )
+            case _ =>  throw("Incorrect invoke result") 
+        }
+    }
+}
+
+@Callable(i)
+func mintLong2_3() = {
+    if (if ((size(i.payments) != 1))
+        then true
+    else (i.payments[0].amount == 0))
+        then throw("1 payment has to be attached mint")
+    else{
+        let firstAmountIn = i.payments[0].amount #USDN als Input
+        let callerId = toString(i.caller)
+
+        strict firstSwappedWavesAmount = invoke(addressFromStringValue(fakePuzzleSwapSC),"swapToWaves",[toString(i.caller),firstAmountIn],nil) #Waves
+       
+    	match firstSwappedWavesAmount {
+            case firstSwappedAmountValue: Int => (
+                strict firstDepositedWavesAmount = invoke(addressFromStringValue(puzzleLendSC),"supply",nil,[AttachedPayment(unit,firstSwappedAmountValue)]) #Waves
+                let listPercentage = [70,49]
+
+                func repeatFunc (accum:Int, next:Int) = {
+                    strict borrowedUsdn = invoke(addressFromStringValue(puzzleLendSC),"borrow",[usdnAddressStr,(firstAmountIn*next)/100],nil) #USDN
+                    strict swappedAmount = invoke(addressFromStringValue(fakePuzzleSwapSC),"swapToWaves",[toString(i.caller),(firstAmountIn*next)/100],nil)
+                    #strict swappedAmount = invoke(addressFromStringValue(fakePuzzleSwapSC),"swapToWaves",[toString(i.caller),1400000],nil)
+                    match swappedAmount {
+                        case swappedAmountValue: Int => (
+                            #strict depositedWaves = invoke(addressFromStringValue(puzzleLendSC),"supply",nil,[AttachedPayment(unit,swappedAmountValue)]) #Waves
+                            (accum+next)            
+                        )
+                        case _ =>  throw("Incorrect invoke result") 
+                    }
+                    
+                }
+
+                let res = FOLD<2>(listPercentage, 0, repeatFunc);
+                [
+                    IntegerEntry("firstSwappedAmountValue", firstSwappedAmountValue),
+                    ScriptTransfer(i.caller,(firstSwappedAmountValue*res)/100,waves2LTokenId),
+                    IntegerEntry("res", res)
+
+                ]
+            )
+            case _ =>  throw("Incorrect invoke result") 
+        }
+    }
+}
+
+@Callable(i)
+func mintLong2_test() = {
+    if (if ((size(i.payments) != 1))
+        then true
+    else (i.payments[0].amount == 0))
+        then throw("1 payment has to be attached mint")
+    else{
+        let firstAmountIn = i.payments[0].amount #USDN als Input
+        let callerId = toString(i.caller)
+
+        strict firstSwappedWavesAmount = invoke(addressFromStringValue(fakePuzzleSwapSC),"swapToWaves",[toString(i.caller),firstAmountIn],nil) #Waves
+       
+    	match firstSwappedWavesAmount {
+            case firstSwappedAmountValue: Int => (
+                strict firstDepositedWavesAmount = invoke(addressFromStringValue(puzzleLendSC),"supply",nil,[AttachedPayment(unit,firstSwappedAmountValue)]) #Waves
+                let listPercentage = [70,49,34,24,17]
+                func repeatFunc (accum:Int, next:Int) = {
+                    #strict borrowedUsdn = invoke(addressFromStringValue(puzzleLendSC),"borrow",[usdnAddressStr,(firstAmountIn*accum)/100],nil) #USDN
+                    #strict swappedAmount = invoke(addressFromStringValue(fakePuzzleSwapSC),"swapToWaves",[toString(i.caller),(firstSwappedAmountValue*accum)/100],nil)                  
+                    (accum+next)                 
+                }
+                let res = FOLD<5>(listPercentage, 0, repeatFunc);
+                [
+                    IntegerEntry("res", res),
+                    IntegerEntry("firstAmountIn", firstAmountIn),
+                    IntegerEntry("firstSwappedAmountValue",firstSwappedAmountValue),
+                    ScriptTransfer(i.caller,(firstSwappedAmountValue*res)/100,waves2LTokenId)  #Man bekommt die Summe von Waves Token (Waves2L) zurück
+                ]
+            )
+            case _ =>  throw("Incorrect invoke result") 
+        }
+    }
+}
+
+@Callable(i)
+func redeem(wavesAmount:Int) = {
+    let userAddress = toString(i.caller)
+    strict redeemedUSDNAmount = invoke(addressFromStringValue(fakePuzzleSwapSC),"swapToUSDN",[wavesAmount,userAddress],nil) #USDN
+    match redeemedUSDNAmount {
+        case redeemedAmountValue: Int => (
+            [
+                IntegerEntry(userAddress+"_redeemed", redeemedAmountValue)
+            ]
+        )
+        case _ =>  throw("Incorrect invoke result") 
+    }
+   
+}
+@Verifier(tx)
+func verify () = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
